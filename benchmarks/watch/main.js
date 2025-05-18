@@ -1,5 +1,5 @@
-import {Solarite, r} from './Solarite.min.js';
-//import {Solarite, r} from '../../src/solarite/Solarite.js';
+import {Solarite, r, watch, renderWatched} from './Solarite.min.js';
+//import {Solarite, r, watch, renderWatched, Globals} from '../../src/solarite/Solarite.js';
 let debug2 = window.location.search.includes('debug');
 let benchmark = window.location.search.includes('benchmark');
 
@@ -64,7 +64,9 @@ class JSFrameworkBenchmark extends Solarite {
 	constructor() {
 		// Disable features we don't need, for performance.
 		// At least until these new features are more performant.
-		super({ids: false, scripts: false, styles: false})
+		super({ids: false, scripts: false, styles: false});
+
+		watch(this, 'data');
 	}
 
 	// quickly mimic what the js-framework-benchmark does.
@@ -124,59 +126,65 @@ class JSFrameworkBenchmark extends Solarite {
 		}
 	}
 
+	// Create 1000 rows
 	run() {
 		this.data = buildData(1000);
 		let modifications = this.render()
 	}
 
+	// Create 10,000 rows
 	runLots() {
 		this.data = buildData(10_000);
 		let modifications = this.render()
 	}
 
+	// Append 1,000 rows
 	add() {
 		this.data.push(...buildData(1000));
 		let modifications = this.render();
 	}
 
+	// Update every 10th row
 	update() {
 		let len = this.data.length;
 		for (let i=0; i<len; i+=10)
 			this.data[i].label += ' !!!';
-		this.render()
+		renderWatched(this);
 	}
 
+	// Swap the 2nd and 998th rows
 	swapRows() {
 		if (this.data.length > 998) {
-
 			let temp = this.data[1];
 			this.data[1] = this.data[998];
 			this.data[998] = temp;
-			var modifications = this.render()
+			let modifications = renderWatched(this);
 		}
 	}
 
 	clear() {
 		this.data = [];
-		let modifications = this.render()
+		this.render()
 	}
 
 	remove(id) {
 		let index = this.data.findIndex(row=>row.id===id);
-
 		this.data.splice(index, 1);
-		let modifications = this.render();
+		renderWatched(this);
 	}
 
 	setSelected(row) {
 		// row.selected = !row.selected;
 		// let modifications = this.render();
 		row.selected = !row.selected;
-		let modifications = this.render();
+		renderWatched(this);
 	}
 
 	render() {
-		let options = {ids: false, scripts: false, styles: false} // doesn't seem to make that much performance difference to disable these?
+		// Disable features we don't need, for performance.
+		// At least until these new features are more performant.
+		// doesn't seem to make that much performance difference to disable these?
+		let options = {ids: false, scripts: false, styles: false}
 		r(this, options)`
 		<div class="container">
 			<div class="jumbotron">
@@ -216,10 +224,10 @@ class JSFrameworkBenchmark extends Solarite {
 			</div>
 			<table class="table table-hover table-striped test-data"><tbody>
 				${this.data.map(row =>
-					r`<tr class=${row.selected ? 'danger' : ''}>
-						<td class="col-md-1">${row.id}</td>
+					r`<tr class="${() => row.selected ? 'danger' : ''}">
+						<td class="col-md-1">${()=>row.id}</td>
 						<td class="col-md-4">
-							<a onclick=${[this.setSelected, row]}>${row.label}</a></td>
+							<a onclick=${[this.setSelected, row]}>${()=>row.label}</a></td>
 						<td class="col-md-1">
 							<a onclick=${[this.remove, row.id]}>
 								<span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a>
@@ -238,7 +246,5 @@ let app = new JSFrameworkBenchmark();
 document.body.append(app);
 
 
-
 if (benchmark)
 	app.benchmark(1);
-
